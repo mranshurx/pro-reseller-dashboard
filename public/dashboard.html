@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard — PRO RESELLER DASHBOARD</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a href="/" class="brand"><span class="mark">PR</span><span>Pro Reseller<small>Dashboard</small></span></a>
+    <div class="spacer"></div>
+    <a class="btn btn-ghost btn-sm" href="/">Browse panels</a>
+    <button class="btn btn-ghost btn-sm" id="logout">Sign out</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="dash-head">
+    <div>
+      <h1 id="hello">Dashboard</h1>
+      <p class="muted" style="margin:4px 0 0;font-size:13.5px">Your purchased keys and balance.</p>
+    </div>
+  </div>
+
+  <div class="balance">
+    <div>
+      <span>Available credits</span>
+      <b id="bal">0</b>
+    </div>
+    <div class="spacer"></div>
+    <span class="muted" style="font-size:12px">1 credit = ₹1 · ask admin to top up</span>
+  </div>
+
+  <div class="section-head"><h2>My keys</h2></div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Panel</th><th>Duration</th><th>Key</th><th>Status</th><th>Expires</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div style="height:70px"></div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function toast(msg, bad) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.style.borderColor = bad ? 'var(--bad)' : 'var(--emerald)';
+  t.classList.add('show');
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, ...opts });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(d.error || 'Request failed'), { status: r.status });
+  return d;
+}
+
+async function boot() {
+  try {
+    const { user } = await api('/api/me');
+    $('hello').textContent = `Welcome, ${user.username}`;
+    $('bal').textContent = user.credits;
+    render(await api('/api/my/keys'));
+  } catch (err) {
+    if (err.status === 401 || err.status === 403) location.href = '/login';
+  }
+}
+
+function render({ keys }) {
+  if (!keys.length) {
+    $('rows').innerHTML = '<tr><td colspan="6" class="muted" style="padding:26px">No keys yet — grab one from the panels page.</td></tr>';
+    return;
+  }
+  $('rows').innerHTML = keys.map(k => {
+    const expired = k.expires_at && new Date(k.expires_at.replace(' ', 'T') + 'Z') < new Date();
+    const cls = k.status === 'REVOKED' ? 'mut' : expired ? 'bad' : 'ok';
+    const label = k.status === 'REVOKED' ? 'Revoked' : expired ? 'Expired' : 'Active';
+    return `<tr>
+      <td><b>${esc(k.panel_name)}</b></td>
+      <td class="muted">${esc(k.plan_label)}</td>
+      <td><code>${esc(k.key_value)}</code></td>
+      <td><span class="pill ${cls}">${label}</span></td>
+      <td class="muted">${esc(k.expires_at || '—')} UTC</td>
+      <td><button class="btn btn-ghost btn-sm" data-copy="${esc(k.key_value)}">Copy</button></td>
+    </tr>`;
+  }).join('');
+}
+
+$('rows').onclick = async e => {
+  const b = e.target.closest('[data-copy]');
+  if (!b) return;
+  try { await navigator.clipboard.writeText(b.dataset.copy); toast('Copied'); }
+  catch { toast('Copy failed', true); }
+};
+
+$('logout').onclick = async () => {
+  await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+  location.href = '/';
+};
+
+boot();
+</script>
+</body>
+</html>
