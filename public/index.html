@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PRO RESELLER DASHBOARD — Free Fire panels</title>
+<title>PRO RESELLER DASHBOARD</title>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -13,16 +13,15 @@
       <span>Pro Reseller<small>Dashboard</small></span></a>
     <div class="spacer"></div>
     <div class="chip" id="balChip" hidden>Balance <b id="bal">0</b> cr</div>
-    <a class="btn btn-ghost" id="dashBtn" href="/dashboard" hidden>Dashboard</a>
-    <a class="btn btn-gold" id="authBtn" href="/login">Sign in</a>
+    <a class="btn btn-ghost" href="/dashboard">My keys</a>
+    <button class="btn btn-ghost" id="logout">Sign out</button>
   </div>
 </header>
 
 <main class="wrap">
   <section class="hero">
     <span class="eyebrow">Reseller tier · Instant delivery</span>
-    <h1>Premium Free Fire panels,<br><em>minted in seconds.</em></h1>
-    <p>Verified webmode builds with live stock. Pick a panel, pick a duration, and your key drops straight into your dashboard.</p>
+    <h1><em>PRO RESELLER</em> DASHBOARD</h1>
     <div class="trust">
       <span><b id="tPanels">0</b> panels live</span>
       <span><b id="tAvail">0</b> keys in stock</span>
@@ -73,6 +72,7 @@ function toast(msg, bad) {
 
 async function api(path, opts = {}) {
   const r = await fetch(path, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, ...opts });
+  if (r.status === 401 || r.status === 403) { location.href = '/login'; throw new Error('auth'); }
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error(d.error || 'Request failed'), { status: r.status });
   return d;
@@ -119,19 +119,9 @@ async function load() {
   render();
 }
 
-function session() {
-  const on = !!me;
-  $('balChip').hidden = !on;
-  $('dashBtn').hidden = !on;
-  $('authBtn').hidden = on;
-  $('authBtn').textContent = 'Sign in';
-  if (on) $('bal').textContent = me.credits;
-}
-
 $('grid').onclick = async e => {
   const btn = e.target.closest('.plan');
   if (!btn || btn.disabled) return;
-  if (!me) return location.href = '/login';
 
   const { name, label, price, plan } = btn.dataset;
   if (!confirm(`Buy ${name} — ${label} for ₹${price} credits?`)) return;
@@ -140,15 +130,13 @@ $('grid').onclick = async e => {
   try {
     const out = await api('/api/buy', { method: 'POST', body: JSON.stringify({ planId: Number(plan) }) });
     me.credits = out.credits;
-    session();
+    $('bal').textContent = me.credits;
     $('keyMeta').textContent = `${out.panel} — ${out.plan} · ₹${out.price} credits`;
     $('keyVal').textContent = out.key;
     $('keyModal').classList.add('open');
     await load();
   } catch (err) {
-    if (err.status === 401) return location.href = '/login';
-    toast(err.message, true);
-    load();
+    if (err.message !== 'auth') { toast(err.message, true); load(); }
   } finally { btn.disabled = false; }
 };
 
@@ -159,10 +147,18 @@ $('keyCopy').onclick = async () => {
 $('keyModal').onclick = e => { if (e.target === $('keyModal')) $('keyModal').classList.remove('open'); };
 $('reload').onclick = load;
 
+$('logout').onclick = async () => {
+  await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+  location.href = '/login';
+};
+
 (async () => {
-  load();
-  try { me = (await api('/api/me')).user; } catch {}
-  session();
+  try {
+    me = (await api('/api/me')).user;
+    $('balChip').hidden = false;
+    $('bal').textContent = me.credits;
+    load();
+  } catch {}
 })();
 </script>
 </body>
