@@ -3,75 +3,127 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Admin — FF Panels</title>
+<title>Admin — PRO RESELLER DASHBOARD</title>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <header>
   <div class="wrap bar">
-    <div class="logo">FF<span>PANELS</span> <span style="color:var(--dim);font-weight:400;font-size:13px">/ admin</span></div>
+    <a href="/" class="brand"><span class="mark">PR</span><span>Pro Reseller<small>Admin console</small></span></a>
     <div class="spacer"></div>
-    <button class="btn-ghost" id="logoutBtn" hidden>Sign out</button>
+    <a class="btn btn-ghost btn-sm" href="/" target="_blank">View store</a>
+    <button class="btn btn-ghost btn-sm" id="logout" hidden>Sign out</button>
   </div>
 </header>
 
 <main class="wrap">
-  <section id="loginBox" style="max-width:380px;margin:70px auto">
-    <div class="card">
-      <h3 style="margin:0 0 14px">Admin sign-in</h3>
+  <section id="loginBox" style="max-width:380px;margin:64px auto">
+    <div class="form-card">
+      <h1>Admin sign-in</h1>
+      <p>Restricted console.</p>
       <form id="loginForm">
         <label class="field"><span>Username</span><input id="u" required></label>
         <label class="field"><span>Password</span><input id="p" type="password" required></label>
         <div class="err" id="err"></div>
-        <button class="btn-acc" style="width:100%" type="submit">Sign in</button>
+        <button class="btn btn-gold" style="width:100%" type="submit">Sign in</button>
       </form>
     </div>
   </section>
 
-  <section id="panelBox" hidden>
+  <section id="app" hidden>
     <div class="stats">
       <div class="stat"><span>Users</span><b id="sUsers">0</b></div>
       <div class="stat"><span>Banned</span><b id="sBanned">0</b></div>
-      <div class="stat"><span>Total keys</span><b id="sKeys">0</b></div>
-      <div class="stat"><span>Keys today</span><b id="sToday">0</b></div>
-      <div class="stat"><span>Revenue ₹</span><b id="sRev">0</b></div>
+      <div class="stat"><span>Panels</span><b id="sPanels">0</b></div>
+      <div class="stat"><span>Keys in stock</span><b id="sAvail" style="color:var(--emerald)">0</b></div>
+      <div class="stat"><span>Keys sold</span><b id="sSold">0</b></div>
+      <div class="stat"><span>Revenue ₹</span><b id="sRev" style="color:var(--gold)">0</b></div>
     </div>
 
-    <div class="sec-title">
-      <h2>Users</h2>
-      <div class="spacer"></div>
-      <input id="search" placeholder="Search username or email" style="max-width:260px">
-      <button class="btn-ghost" id="refresh">Refresh</button>
-      <button class="btn-ghost" id="allKeys">All keys</button>
+    <div class="tabs">
+      <button class="tab on" data-tab="panels">Panels &amp; stock</button>
+      <button class="tab" data-tab="users">Users</button>
     </div>
 
-    <div style="overflow:auto"><table>
-      <thead><tr><th>ID</th><th>User</th><th>Credits</th><th>Keys</th><th>Spent ₹</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
-      <tbody id="usersBody"></tbody>
-    </table></div>
+    <!-- panels -->
+    <section id="tab-panels">
+      <div class="panel-block">
+        <div class="panel-head">
+          <b style="font-size:14px">Create panel</b>
+          <div class="spacer"></div>
+        </div>
+        <div class="panel-body">
+          <form id="panelForm" style="display:grid;gap:10px;grid-template-columns:1fr 1fr 1fr auto">
+            <input id="pName" placeholder="Panel name" required>
+            <input id="pLogo" placeholder="Logo URL (https://…)">
+            <input id="pTag" placeholder="Tagline (optional)">
+            <button class="btn btn-gold" type="submit">Add panel</button>
+          </form>
+          <p class="hint">Logo is an image URL. Leave blank to use the panel initial.</p>
+        </div>
+      </div>
 
-    <div id="keysBox" hidden style="margin-top:34px">
-      <div class="sec-title"><h2 id="keysTitle">Keys</h2></div>
-      <div style="overflow:auto"><table>
-        <thead><tr><th>Panel</th><th>Plan</th><th>Key</th><th>User</th><th>Status</th><th>Expires</th><th></th></tr></thead>
-        <tbody id="keysBody"></tbody>
-      </table></div>
-    </div>
+      <div id="panelList"></div>
+    </section>
+
+    <!-- users -->
+    <section id="tab-users" hidden>
+      <div class="section-head">
+        <h2 style="font-size:19px">Users</h2>
+        <div class="spacer"></div>
+        <input id="search" placeholder="Search username or email" style="max-width:260px">
+        <button class="btn btn-ghost btn-sm" id="refresh">Refresh</button>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>ID</th><th>User</th><th>Credits</th><th>Keys</th><th>Spent ₹</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
+          <tbody id="userRows"></tbody>
+        </table>
+      </div>
+    </section>
   </section>
 </main>
 
+<!-- credit modal -->
 <div class="modal-bg" id="creditModal">
   <div class="modal">
-    <h3 style="margin:0 0 14px">Adjust credits — <span id="cUser"></span></h3>
+    <h3>Adjust credits — <span id="cUser"></span></h3>
     <form id="creditForm">
-      <label class="field"><span>Amount (negative to deduct)</span><input id="cAmount" type="number" value="50" required></label>
-      <label class="field"><span>Note</span><input id="cNote" placeholder="e.g. manual top-up"></label>
+      <label class="field"><span>Amount (negative deducts)</span><input id="cAmount" type="number" value="100" required></label>
+      <label class="field"><span>Note</span><input id="cNote" placeholder="manual top-up"></label>
       <div class="err" id="cErr"></div>
-      <div style="display:flex;gap:9px">
-        <button type="button" class="btn-ghost" id="cCancel" style="flex:1">Cancel</button>
-        <button class="btn-acc" type="submit" style="flex:1">Apply</button>
+      <div class="row">
+        <button type="button" class="btn btn-ghost" id="cCancel">Cancel</button>
+        <button class="btn btn-gold" type="submit">Apply</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- stock modal -->
+<div class="modal-bg" id="stockModal">
+  <div class="modal">
+    <h3>Load keys — <span id="kMeta"></span></h3>
+    <form id="stockForm">
+      <label class="field"><span>One key per line</span>
+        <textarea id="kKeys" rows="9" placeholder="PHANTOM-AAAA-BBBB-CCCC&#10;PHANTOM-DDDD-EEEE-FFFF" required></textarea>
+      </label>
+      <p class="hint">Duplicates are skipped automatically. Keys are saved permanently.</p>
+      <div class="err" id="kErr"></div>
+      <div class="row">
+        <button type="button" class="btn btn-ghost" id="kCancel">Cancel</button>
+        <button class="btn btn-gold" type="submit">Add keys</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- user keys modal -->
+<div class="modal-bg" id="uKeysModal">
+  <div class="modal">
+    <h3>Keys — <span id="ukUser"></span></h3>
+    <div id="ukBody" style="max-height:52vh;overflow:auto"></div>
+    <div class="row" style="margin-top:14px"><button class="btn btn-ghost" id="ukClose">Close</button></div>
   </div>
 </div>
 
@@ -80,40 +132,37 @@
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let creditTarget = null;
+let creditTarget = null, stockPlan = null;
 
 function toast(msg, bad) {
   const t = $('toast');
   t.textContent = msg;
-  t.style.borderColor = bad ? 'var(--bad)' : 'var(--acc)';
+  t.style.borderColor = bad ? 'var(--bad)' : 'var(--emerald)';
   t.classList.add('show');
   clearTimeout(t._h);
-  t._h = setTimeout(() => t.classList.remove('show'), 2600);
+  t._h = setTimeout(() => t.classList.remove('show'), 2800);
 }
 
 async function api(path, opts = {}) {
-  const r = await fetch(path, {
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    ...opts
-  });
+  const r = await fetch(path, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, ...opts });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error(d.error || 'Request failed'), { status: r.status });
   return d;
 }
 
+/* ---------- auth ---------- */
+
 async function boot() {
   try {
     await api('/api/admin/me');
     $('loginBox').hidden = true;
-    $('panelBox').hidden = false;
-    $('logoutBtn').hidden = false;
-    loadStats();
-    loadUsers();
+    $('app').hidden = false;
+    $('logout').hidden = false;
+    refreshAll();
   } catch {
     $('loginBox').hidden = false;
-    $('panelBox').hidden = true;
-    $('logoutBtn').hidden = true;
+    $('app').hidden = true;
+    $('logout').hidden = true;
   }
 }
 
@@ -127,64 +176,207 @@ $('loginForm').onsubmit = async e => {
   } catch (err) { $('err').textContent = err.message; }
 };
 
-$('logoutBtn').onclick = async () => { await api('/api/admin/logout', { method: 'POST' }); boot(); };
+$('logout').onclick = async () => { await api('/api/admin/logout', { method: 'POST' }); boot(); };
+
+/* ---------- tabs ---------- */
+
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
+  $('tab-panels').hidden = t.dataset.tab !== 'panels';
+  $('tab-users').hidden = t.dataset.tab !== 'users';
+});
+
+/* ---------- stats ---------- */
 
 async function loadStats() {
   const s = await api('/api/admin/stats');
   $('sUsers').textContent = s.users;
   $('sBanned').textContent = s.banned;
-  $('sKeys').textContent = s.keys;
-  $('sToday').textContent = s.keysToday;
+  $('sPanels').textContent = s.panels;
+  $('sAvail').textContent = s.available;
+  $('sSold').textContent = s.sold;
   $('sRev').textContent = s.revenue;
 }
 
+/* ---------- panels ---------- */
+
+async function loadPanels() {
+  const { panels } = await api('/api/admin/panels');
+  $('panelList').innerHTML = panels.length ? panels.map(p => `
+    <div class="panel-block" data-panel="${p.id}">
+      <div class="panel-head">
+        <div class="p-logo" style="width:38px;height:38px;border-radius:10px;font-size:15px">
+          <span>${esc((p.name || '?')[0])}</span>
+          ${p.logo ? `<img src="${esc(p.logo)}" alt="" onerror="this.style.display='none'">` : ''}
+        </div>
+        <div>
+          <b style="font-size:14px">${esc(p.name)}</b>
+          <div class="muted" style="font-size:11.5px">${esc(p.tagline || 'no tagline')}</div>
+        </div>
+        <span class="pill ${p.active ? 'ok' : 'mut'}">${p.active ? 'Live' : 'Offline'}</span>
+        <div class="spacer"></div>
+        <button class="btn btn-ghost btn-sm" data-act="toggle">${p.active ? 'Take offline' : 'Publish'}</button>
+        <button class="btn btn-ghost btn-sm" data-act="edit">Edit</button>
+        <button class="btn btn-bad btn-sm" data-act="del">Delete</button>
+      </div>
+      <div class="panel-body">
+        ${p.plans.length ? p.plans.map(pl => `
+          <div class="plan-line" data-plan="${pl.id}">
+            <input value="${esc(pl.label)}" data-f="label" style="padding:8px 10px">
+            <input type="number" value="${pl.hours}" data-f="hours" min="1" style="padding:8px 10px" title="hours">
+            <input type="number" value="${pl.price}" data-f="price" min="1" style="padding:8px 10px" title="price ₹">
+            <div style="display:flex;gap:6px;align-items:center">
+              <span class="stk">${pl.in_stock} avail / ${pl.sold} sold</span>
+              <div class="spacer"></div>
+              <button class="btn btn-ghost btn-sm" data-act="save-plan">Save</button>
+              <button class="btn btn-gold btn-sm" data-act="stock">+ Keys</button>
+              <button class="btn btn-bad btn-sm" data-act="del-plan">×</button>
+            </div>
+          </div>`).join('') : '<p class="muted" style="font-size:13px;margin:0">No plans yet.</p>'}
+        <form class="plan-line" data-newplan style="grid-template-columns:1fr 90px 110px auto">
+          <input placeholder="New duration label (e.g. 2 HOURS)" data-f="label" style="padding:8px 10px">
+          <input type="number" placeholder="hours" data-f="hours" min="1" style="padding:8px 10px">
+          <input type="number" placeholder="₹ price" data-f="price" min="1" style="padding:8px 10px">
+          <button class="btn btn-ghost btn-sm" type="submit">Add plan</button>
+        </form>
+      </div>
+    </div>`).join('')
+    : '<p class="muted">No panels yet — create one above.</p>';
+}
+
+$('panelForm').onsubmit = async e => {
+  e.preventDefault();
+  try {
+    await api('/api/admin/panels', {
+      method: 'POST',
+      body: JSON.stringify({ name: $('pName').value, logo: $('pLogo').value, tagline: $('pTag').value })
+    });
+    $('panelForm').reset();
+    toast('Panel created');
+    loadPanels(); loadStats();
+  } catch (err) { toast(err.message, true); }
+};
+
+$('panelList').onclick = async e => {
+  const btn = e.target.closest('[data-act]');
+  if (!btn) return;
+  const block = btn.closest('[data-panel]');
+  const panelId = block.dataset.panel;
+  const line = btn.closest('[data-plan]');
+  const planId = line?.dataset.plan;
+
+  if (btn.dataset.act === 'toggle') {
+    const live = block.querySelector('.pill').classList.contains('ok');
+    await api('/api/admin/panels/' + panelId, { method: 'PATCH', body: JSON.stringify({ active: !live }) });
+    toast(live ? 'Panel offline' : 'Panel published');
+    loadPanels();
+  }
+
+  if (btn.dataset.act === 'edit') {
+    const name = prompt('Panel name:', block.querySelector('b').textContent);
+    if (name === null) return;
+    const logo = prompt('Logo URL (blank to clear):', '') ?? '';
+    const tagline = prompt('Tagline:', '') ?? '';
+    await api('/api/admin/panels/' + panelId, { method: 'PATCH', body: JSON.stringify({ name, logo, tagline }) });
+    toast('Panel updated');
+    loadPanels();
+  }
+
+  if (btn.dataset.act === 'del') {
+    if (!confirm('Delete this panel, its plans and all unsold keys?')) return;
+    await api('/api/admin/panels/' + panelId, { method: 'DELETE' });
+    toast('Panel deleted');
+    loadPanels(); loadStats();
+  }
+
+  if (btn.dataset.act === 'save-plan') {
+    const get = f => line.querySelector(`[data-f="${f}"]`).value;
+    await api('/api/admin/plans/' + planId, {
+      method: 'PATCH',
+      body: JSON.stringify({ label: get('label'), hours: Number(get('hours')), price: Number(get('price')) })
+    });
+    toast('Plan saved');
+    loadPanels();
+  }
+
+  if (btn.dataset.act === 'del-plan') {
+    if (!confirm('Delete this plan and its unsold keys?')) return;
+    await api('/api/admin/plans/' + planId, { method: 'DELETE' });
+    toast('Plan deleted');
+    loadPanels(); loadStats();
+  }
+
+  if (btn.dataset.act === 'stock') {
+    stockPlan = planId;
+    $('kMeta').textContent = line.querySelector('[data-f="label"]').value;
+    $('kErr').textContent = '';
+    $('stockForm').reset();
+    $('stockModal').classList.add('open');
+    $('kKeys').focus();
+  }
+};
+
+$('panelList').onsubmit = async e => {
+  const form = e.target.closest('[data-newplan]');
+  if (!form) return;
+  e.preventDefault();
+  const panelId = form.closest('[data-panel]').dataset.panel;
+  const get = f => form.querySelector(`[data-f="${f}"]`).value;
+  try {
+    await api(`/api/admin/panels/${panelId}/plans`, {
+      method: 'POST',
+      body: JSON.stringify({ label: get('label'), hours: Number(get('hours')), price: Number(get('price')) })
+    });
+    toast('Plan added');
+    loadPanels();
+  } catch (err) { toast(err.message, true); }
+};
+
+/* ---------- stock modal ---------- */
+
+$('stockForm').onsubmit = async e => {
+  e.preventDefault();
+  $('kErr').textContent = '';
+  try {
+    const out = await api(`/api/admin/plans/${stockPlan}/stock`, {
+      method: 'POST', body: JSON.stringify({ keys: $('kKeys').value })
+    });
+    $('stockModal').classList.remove('open');
+    toast(`${out.added} keys added${out.skipped ? `, ${out.skipped} duplicates skipped` : ''}`);
+    loadPanels(); loadStats();
+  } catch (err) { $('kErr').textContent = err.message; }
+};
+$('kCancel').onclick = () => $('stockModal').classList.remove('open');
+
+/* ---------- users ---------- */
+
 async function loadUsers() {
-  const q = encodeURIComponent($('search').value);
-  const { users } = await api('/api/admin/users?q=' + q);
-  $('usersBody').innerHTML = users.length ? users.map(u => `
+  const { users } = await api('/api/admin/users?q=' + encodeURIComponent($('search').value));
+  $('userRows').innerHTML = users.length ? users.map(u => `
     <tr>
       <td class="muted">#${u.id}</td>
-      <td><b>${esc(u.username)}</b><br><span class="muted" style="font-size:12px">${esc(u.email)}</span></td>
-      <td><b style="color:var(--acc)">${u.credits}</b></td>
+      <td><b>${esc(u.username)}</b><br><span class="muted" style="font-size:11.5px">${esc(u.email)}</span></td>
+      <td><b style="color:var(--gold)">${u.credits}</b></td>
       <td>${u.key_count}</td>
       <td>${u.spent}</td>
-      <td><span class="pill ${u.banned ? 'off' : 'on'}">${u.banned ? 'Banned' : 'Active'}</span></td>
+      <td><span class="pill ${u.banned ? 'bad' : 'ok'}">${u.banned ? 'Banned' : 'Active'}</span></td>
       <td class="muted">${esc(u.created_at)}</td>
       <td style="white-space:nowrap">
-        <button class="btn-ghost" data-act="credit" data-id="${u.id}" data-name="${esc(u.username)}">± Credits</button>
-        <button class="btn-ghost" data-act="keys" data-id="${u.id}" data-name="${esc(u.username)}">Keys</button>
-        <button class="${u.banned ? 'btn-ghost' : 'btn-bad'}" data-act="ban" data-id="${u.id}" data-banned="${u.banned}">${u.banned ? 'Unban' : 'Ban'}</button>
-        <button class="btn-ghost" data-act="del" data-id="${u.id}" data-name="${esc(u.username)}">Del</button>
+        <button class="btn btn-ghost btn-sm" data-uact="credit" data-id="${u.id}" data-name="${esc(u.username)}">± Credits</button>
+        <button class="btn btn-ghost btn-sm" data-uact="keys" data-id="${u.id}" data-name="${esc(u.username)}">Keys</button>
+        <button class="btn ${u.banned ? 'btn-ghost' : 'btn-bad'} btn-sm" data-uact="ban" data-id="${u.id}" data-banned="${u.banned}">${u.banned ? 'Unban' : 'Ban'}</button>
+        <button class="btn btn-ghost btn-sm" data-uact="del" data-id="${u.id}" data-name="${esc(u.username)}">Del</button>
       </td>
-    </tr>`).join('') : `<tr><td colspan="8" class="muted" style="padding:22px">No users yet.</td></tr>`;
+    </tr>`).join('')
+    : '<tr><td colspan="8" class="muted" style="padding:24px">No users.</td></tr>';
 }
 
-async function loadKeys(userId, name) {
-  const { keys } = await api('/api/admin/keys' + (userId ? '?userId=' + userId : ''));
-  $('keysBox').hidden = false;
-  $('keysTitle').textContent = userId ? `Keys — ${name}` : 'All keys';
-  $('keysBody').innerHTML = keys.length ? keys.map(k => {
-    const expired = new Date(k.expires_at.replace(' ', 'T') + 'Z') < new Date();
-    const cls = k.status === 'REVOKED' ? 'rev' : expired ? 'off' : 'on';
-    const label = k.status === 'REVOKED' ? 'Revoked' : expired ? 'Expired' : 'Active';
-    return `<tr>
-      <td>${esc(k.panel_name)}</td>
-      <td class="muted">${esc(k.plan_label)}</td>
-      <td><code>${esc(k.key_value)}</code></td>
-      <td>${esc(k.username)}</td>
-      <td><span class="pill ${cls}">${label}</span></td>
-      <td class="muted">${esc(k.expires_at)} UTC</td>
-      <td>${k.status === 'ACTIVE' ? `<button class="btn-bad" data-rev="${k.id}">Revoke</button>` : ''}</td>
-    </tr>`;
-  }).join('') : `<tr><td colspan="7" class="muted" style="padding:22px">No keys.</td></tr>`;
-}
-
-$('usersBody').onclick = async e => {
-  const b = e.target.closest('[data-act]');
+$('userRows').onclick = async e => {
+  const b = e.target.closest('[data-uact]');
   if (!b) return;
   const id = b.dataset.id;
 
-  if (b.dataset.act === 'credit') {
+  if (b.dataset.uact === 'credit') {
     creditTarget = id;
     $('cUser').textContent = b.dataset.name;
     $('cErr').textContent = '';
@@ -192,29 +384,29 @@ $('usersBody').onclick = async e => {
     $('cAmount').focus();
   }
 
-  if (b.dataset.act === 'keys') loadKeys(id, b.dataset.name);
+  if (b.dataset.uact === 'keys') {
+    $('ukUser').textContent = b.dataset.name;
+    const { keys } = await api(`/api/admin/users/${id}/keys`);
+    $('ukBody').innerHTML = keys.length ? keys.map(k => `
+      <div style="padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px">
+        <code>${esc(k.key_value)}</code>
+        <div class="muted" style="font-size:11px;margin-top:3px">${esc(k.panel_name)} · ${esc(k.plan_label)} · ${esc(k.status)}</div>
+      </div>`).join('') : '<p class="muted">No keys.</p>';
+    $('uKeysModal').classList.add('open');
+  }
 
-  if (b.dataset.act === 'ban') {
-    const next = b.dataset.banned === '1' ? 0 : 1;
-    await api(`/api/admin/users/${id}/ban`, { method: 'POST', body: JSON.stringify({ banned: next }) });
-    toast(next ? 'User banned' : 'User unbanned');
+  if (b.dataset.uact === 'ban') {
+    await api(`/api/admin/users/${id}/ban`, { method: 'POST', body: JSON.stringify({ banned: b.dataset.banned !== '1' }) });
+    toast(b.dataset.banned === '1' ? 'Unbanned' : 'Banned');
     loadUsers(); loadStats();
   }
 
-  if (b.dataset.act === 'del') {
-    if (!confirm(`Delete ${b.dataset.name} and all their keys?`)) return;
+  if (b.dataset.uact === 'del') {
+    if (!confirm(`Delete ${b.dataset.name}? Their sold keys stay in stock history.`)) return;
     await api('/api/admin/users/' + id, { method: 'DELETE' });
     toast('User deleted');
     loadUsers(); loadStats();
   }
-};
-
-$('keysBody').onclick = async e => {
-  const b = e.target.closest('[data-rev]');
-  if (!b) return;
-  await api('/api/admin/keys/' + b.dataset.rev + '/revoke', { method: 'POST' });
-  toast('Key revoked');
-  loadKeys();
 };
 
 $('creditForm').onsubmit = async e => {
@@ -230,12 +422,15 @@ $('creditForm').onsubmit = async e => {
     loadUsers(); loadStats();
   } catch (err) { $('cErr').textContent = err.message; }
 };
-
 $('cCancel').onclick = () => $('creditModal').classList.remove('open');
-$('creditModal').onclick = e => { if (e.target === $('creditModal')) $('creditModal').classList.remove('open'); };
-$('refresh').onclick = () => { loadUsers(); loadStats(); };
-$('allKeys').onclick = () => loadKeys();
+$('ukClose').onclick = () => $('uKeysModal').classList.remove('open');
+
+document.querySelectorAll('.modal-bg').forEach(m => m.onclick = e => { if (e.target === m) m.classList.remove('open'); });
+
 $('search').oninput = () => { clearTimeout(window._t); window._t = setTimeout(loadUsers, 250); };
+$('refresh').onclick = () => { loadUsers(); loadStats(); };
+
+function refreshAll() { loadStats(); loadPanels(); loadUsers(); }
 
 boot();
 </script>
