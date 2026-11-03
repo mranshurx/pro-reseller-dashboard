@@ -3,223 +3,166 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FF Panel Reseller</title>
+<title>PRO RESELLER DASHBOARD — Free Fire panels</title>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <header>
   <div class="wrap bar">
-    <div class="logo">FF<span>PANELS</span></div>
+    <a href="/" class="brand"><span class="mark">PR</span>
+      <span>Pro Reseller<small>Dashboard</small></span></a>
     <div class="spacer"></div>
-    <div class="chip" id="balChip" hidden>Credits <b id="bal">0</b></div>
-    <button class="btn-ghost" id="keysBtn" hidden>My Keys</button>
-    <button class="btn-ghost" id="logoutBtn" hidden>Sign out</button>
-    <button class="btn-acc" id="loginBtn">Sign in</button>
+    <div class="chip" id="balChip" hidden>Balance <b id="bal">0</b> cr</div>
+    <a class="btn btn-ghost" id="dashBtn" href="/dashboard" hidden>Dashboard</a>
+    <a class="btn btn-gold" id="authBtn" href="/login">Sign in</a>
   </div>
 </header>
 
 <main class="wrap">
   <section class="hero">
-    <h1>Instant Free Fire panel access</h1>
-    <p>Reseller tier pricing. Pick a panel, pick a duration, mint your key instantly. 1 credit = ₹1.</p>
+    <span class="eyebrow">Reseller tier · Instant delivery</span>
+    <h1>Premium Free Fire panels,<br><em>minted in seconds.</em></h1>
+    <p>Verified webmode builds with live stock. Pick a panel, pick a duration, and your key drops straight into your dashboard.</p>
+    <div class="trust">
+      <span><b id="tPanels">0</b> panels live</span>
+      <span><b id="tAvail">0</b> keys in stock</span>
+      <span><b id="tSold">0</b> keys delivered</span>
+      <span>1 credit = ₹1</span>
+    </div>
   </section>
-  <div class="grid" id="grid"></div>
-  <div id="keysSection" hidden>
-    <div class="sec-title"><h2>My Keys</h2></div>
-    <div style="overflow:auto"><table>
-      <thead><tr><th>Panel</th><th>Plan</th><th>Key</th><th>Status</th><th>Expires</th><th></th></tr></thead>
-      <tbody id="keysBody"></tbody>
-    </table></div>
+
+  <div class="section-head">
+    <div>
+      <h2>Available panels</h2>
+      <p>Prices are set per duration. Stock updates in real time.</p>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn btn-ghost btn-sm" id="reload">Refresh stock</button>
   </div>
+
+  <div class="grid" id="grid"></div>
 </main>
 
-<div class="modal-bg" id="authModal">
+<div class="modal-bg" id="keyModal">
   <div class="modal">
-    <h3 id="authTitle" style="margin:0 0 14px">Sign in</h3>
-    <form id="authForm">
-      <label class="field"><span>Username or email</span><input id="aUser" autocomplete="username" required></label>
-      <label class="field" id="emailField" hidden><span>Email</span><input id="aEmail" type="email"></label>
-      <label class="field"><span>Password</span><input id="aPass" type="password" autocomplete="current-password" required></label>
-      <div class="err" id="authErr"></div>
-      <button class="btn-acc" style="width:100%" type="submit" id="authSubmit">Sign in</button>
-    </form>
-    <p class="muted" style="font-size:13px;margin:14px 0 0">
-      <span id="switchText">No account?</span> <a href="#" id="switchMode">Create one</a>
-    </p>
+    <h3>Key delivered</h3>
+    <p class="muted" id="keyMeta" style="margin:0 0 14px;font-size:13px"></p>
+    <code id="keyVal" style="display:block;padding:13px;text-align:center;font-size:14px"></code>
+    <div class="row" style="margin-top:16px">
+      <button class="btn btn-ghost" id="keyCopy">Copy key</button>
+      <a class="btn btn-gold" href="/dashboard">My keys</a>
+    </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-let me = null, mode = 'login', panels = [];
-
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let me = null, panels = [];
 
 function toast(msg, bad) {
   const t = $('toast');
   t.textContent = msg;
-  t.style.borderColor = bad ? 'var(--bad)' : 'var(--acc)';
+  t.style.borderColor = bad ? 'var(--bad)' : 'var(--emerald)';
   t.classList.add('show');
   clearTimeout(t._h);
-  t._h = setTimeout(() => t.classList.remove('show'), 2600);
+  t._h = setTimeout(() => t.classList.remove('show'), 2800);
 }
 
 async function api(path, opts = {}) {
-  const r = await fetch(path, {
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    ...opts
-  });
+  const r = await fetch(path, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, ...opts });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error(d.error || 'Request failed'), { status: r.status });
   return d;
 }
 
-/* ---------- rendering ---------- */
-
-function renderPanels() {
-  $('grid').innerHTML = panels.map(p => `
-    <div class="card">
-      <div class="tier">Reseller</div>
-      <h3>🛒 ${esc(p.name)}</h3>
-      <div class="plans">
-        ${p.plans.map(pl => `
-          <button class="plan" data-panel="${esc(p.id)}" data-plan="${esc(pl.id)}">
-            <span>₹${pl.price} — ${esc(pl.label)}</span><b>Mint</b>
-          </button>`).join('')}
-      </div>
-    </div>`).join('');
+function logoHtml(p) {
+  const letter = esc((p.name || '?').trim()[0] || '?');
+  return `<div class="p-logo"><span>${letter}</span>${p.logo ? `<img src="${esc(p.logo)}" alt="" onerror="this.style.display='none'">` : ''}</div>`;
 }
 
-function renderSession() {
+function render() {
+  $('grid').innerHTML = panels.length ? panels.map(p => `
+    <article class="p-card">
+      <div class="p-top">
+        ${logoHtml(p)}
+        <div>
+          <div class="p-tier">${esc(p.tier || 'RESELLER')}</div>
+          <h3 class="p-name">${esc(p.name)}</h3>
+          <p class="p-tag">${esc(p.tagline || 'Premium webmode access')}</p>
+        </div>
+      </div>
+      <div class="plans">
+        ${p.plans.length ? p.plans.map(pl => {
+          const out = pl.in_stock === 0;
+          const low = pl.in_stock > 0 && pl.in_stock < 5;
+          return `<button class="plan ${out ? 'out' : ''} ${low ? 'low' : ''}" ${out ? 'disabled' : ''}
+                    data-plan="${pl.id}" data-name="${esc(p.name)}" data-label="${esc(pl.label)}" data-price="${pl.price}">
+            <span class="dur">${esc(pl.label)}</span>
+            <span class="stock">${out ? 'sold out' : (low ? pl.in_stock + ' left' : pl.in_stock + ' in stock')}</span>
+            <span class="price">${pl.price}</span>
+          </button>`;
+        }).join('') : '<p class="muted" style="font-size:13px;margin:4px 0">No plans configured yet.</p>'}
+      </div>
+    </article>`).join('')
+    : '<p class="muted">No panels are live right now.</p>';
+}
+
+async function load() {
+  const d = await api('/api/store');
+  panels = d.panels;
+  $('tPanels').textContent = d.meta.panels;
+  $('tAvail').textContent = d.meta.keysAvailable;
+  $('tSold').textContent = d.meta.keysDelivered;
+  render();
+}
+
+function session() {
   const on = !!me;
   $('balChip').hidden = !on;
-  $('keysBtn').hidden = !on;
-  $('logoutBtn').hidden = !on;
-  $('loginBtn').hidden = on;
+  $('dashBtn').hidden = !on;
+  $('authBtn').hidden = on;
+  $('authBtn').textContent = 'Sign in';
   if (on) $('bal').textContent = me.credits;
 }
 
-async function loadKeys() {
-  if (!me) return;
-  const { keys } = await api('/api/my/keys');
-  $('keysSection').hidden = keys.length === 0;
-  $('keysBody').innerHTML = keys.map(k => {
-    const expired = new Date(k.expires_at.replace(' ', 'T') + 'Z') < new Date();
-    const cls = k.status === 'REVOKED' ? 'rev' : expired ? 'off' : 'on';
-    const label = k.status === 'REVOKED' ? 'Revoked' : expired ? 'Expired' : 'Active';
-    return `<tr>
-      <td>${esc(k.panel_name)}</td>
-      <td class="muted">${esc(k.plan_label)}</td>
-      <td><code>${esc(k.key_value)}</code></td>
-      <td><span class="pill ${cls}">${label}</span></td>
-      <td class="muted">${esc(k.expires_at)} UTC</td>
-      <td><button class="btn-ghost" data-copy="${esc(k.key_value)}">Copy</button></td>
-    </tr>`;
-  }).join('');
-}
-
-/* ---------- auth ---------- */
-
-function openAuth(next) {
-  mode = next || 'login';
-  $('authTitle').textContent = mode === 'login' ? 'Sign in' : 'Create account';
-  $('authSubmit').textContent = mode === 'login' ? 'Sign in' : 'Create account';
-  $('emailField').hidden = mode === 'login';
-  $('switchText').textContent = mode === 'login' ? 'No account?' : 'Already registered?';
-  $('switchMode').textContent = mode === 'login' ? 'Create one' : 'Sign in';
-  $('authErr').textContent = '';
-  $('authForm').reset();
-  $('authModal').classList.add('open');
-}
-
-$('loginBtn').onclick = () => openAuth('login');
-$('switchMode').onclick = e => { e.preventDefault(); openAuth(mode === 'login' ? 'register' : 'login'); };
-$('authModal').onclick = e => { if (e.target === $('authModal')) $('authModal').classList.remove('open'); };
-
-$('authForm').onsubmit = async e => {
-  e.preventDefault();
-  $('authErr').textContent = '';
-  try {
-    const body = { username: $('aUser').value, password: $('aPass').value };
-    if (mode === 'register') body.email = $('aEmail').value;
-    const out = await api(mode === 'register' ? '/api/register' : '/api/login', {
-      method: 'POST', body: JSON.stringify(body)
-    });
-    me = out.user;
-    $('authModal').classList.remove('open');
-    renderSession();
-    loadKeys();
-    toast(`Welcome, ${me.username}`);
-  } catch (err) {
-    $('authErr').textContent = err.message;
-  }
-};
-
-$('logoutBtn').onclick = async () => {
-  await api('/api/logout', { method: 'POST' });
-  me = null;
-  renderSession();
-  $('keysSection').hidden = true;
-  toast('Signed out');
-};
-
-$('keysBtn').onclick = () => {
-  $('keysSection').scrollIntoView({ behavior: 'smooth' });
-};
-
-/* ---------- actions ---------- */
-
 $('grid').onclick = async e => {
   const btn = e.target.closest('.plan');
-  if (!btn) return;
-  if (!me) return openAuth('login');
+  if (!btn || btn.disabled) return;
+  if (!me) return location.href = '/login';
 
-  const panel = panels.find(p => p.id === btn.dataset.panel);
-  const plan = panel.plans.find(p => p.id === btn.dataset.plan);
-  if (!confirm(`Mint ${panel.name} — ${plan.label} for ₹${plan.price} credits?`)) return;
+  const { name, label, price, plan } = btn.dataset;
+  if (!confirm(`Buy ${name} — ${label} for ₹${price} credits?`)) return;
 
   btn.disabled = true;
   try {
-    const out = await api('/api/keys/purchase', {
-      method: 'POST',
-      body: JSON.stringify({ panelId: btn.dataset.panel, planId: btn.dataset.plan })
-    });
+    const out = await api('/api/buy', { method: 'POST', body: JSON.stringify({ planId: Number(plan) }) });
     me.credits = out.credits;
-    renderSession();
-    await loadKeys();
-    toast(`Key minted: ${out.key}`);
+    session();
+    $('keyMeta').textContent = `${out.panel} — ${out.plan} · ₹${out.price} credits`;
+    $('keyVal').textContent = out.key;
+    $('keyModal').classList.add('open');
+    await load();
   } catch (err) {
-    if (err.status === 401) openAuth('login');
-    else toast(err.message, true);
-  } finally {
-    btn.disabled = false;
-  }
+    if (err.status === 401) return location.href = '/login';
+    toast(err.message, true);
+    load();
+  } finally { btn.disabled = false; }
 };
 
-$('keysBody').onclick = async e => {
-  const b = e.target.closest('[data-copy]');
-  if (!b) return;
-  try {
-    await navigator.clipboard.writeText(b.dataset.copy);
-    toast('Copied');
-  } catch { toast('Copy failed', true); }
+$('keyCopy').onclick = async () => {
+  try { await navigator.clipboard.writeText($('keyVal').textContent); toast('Copied'); }
+  catch { toast('Copy failed', true); }
 };
-
-/* ---------- boot ---------- */
+$('keyModal').onclick = e => { if (e.target === $('keyModal')) $('keyModal').classList.remove('open'); };
+$('reload').onclick = load;
 
 (async () => {
-  const { panels: p } = await api('/api/panels');
-  panels = p;
-  renderPanels();
-  try {
-    const { user } = await api('/api/me');
-    me = user;
-    renderSession();
-    loadKeys();
-  } catch { renderSession(); }
+  load();
+  try { me = (await api('/api/me')).user; } catch {}
+  session();
 })();
 </script>
 </body>
