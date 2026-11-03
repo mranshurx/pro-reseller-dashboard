@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sign in — PRO RESELLER DASHBOARD</title>
+<title>Create account — PRO RESELLER DASHBOARD</title>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -24,17 +24,16 @@
 
   <section class="split-form">
     <div class="form-card">
-      <h1 id="title">Welcome back</h1>
-      <p id="sub">Sign in to reach your dashboard.</p>
+      <h1 id="title">Create your account</h1>
+      <p id="sub">Free to join — top up credits with the admin.</p>
       <form id="form">
-        <label class="field"><span>Username or email</span><input id="user" autocomplete="username" required></label>
-        <label class="field" id="emailField" hidden><span>Email</span><input id="email" type="email"></label>
-        <label class="field"><span>Password</span><input id="pass" type="password" autocomplete="current-password" required></label>
+        <label class="field"><span>Username</span><input id="user" autocomplete="username" required></label>
+        <label class="field" id="emailField"><span>Email</span><input id="email" type="email" required></label>
+        <label class="field"><span>Password</span><input id="pass" type="password" autocomplete="new-password" required></label>
         <div class="err" id="err"></div>
-        <button class="btn btn-gold" style="width:100%" type="submit" id="submit">Sign in</button>
+        <button class="btn btn-gold" style="width:100%" type="submit" id="submit">Create account</button>
       </form>
-      <p class="swap"><span id="swapText">No account?</span> <a href="#" id="swap">Create one</a></p>
-      <p class="swap"><a href="/">← Back to panels</a></p>
+      <p class="swap"><span id="swapText">Already registered?</span> <a href="#" id="swap">Sign in</a></p>
     </div>
   </section>
 </div>
@@ -43,7 +42,7 @@
 
 <script>
 const $ = id => document.getElementById(id);
-let mode = 'login';
+let mode = 'register';
 
 function toast(msg, bad) {
   const t = $('toast');
@@ -60,12 +59,14 @@ function paint() {
   $('sub').textContent = reg ? 'Free to join — top up credits with the admin.' : 'Sign in to reach your dashboard.';
   $('submit').textContent = reg ? 'Create account' : 'Sign in';
   $('emailField').hidden = !reg;
+  $('email').required = reg;
+  $('pass').autocomplete = reg ? 'new-password' : 'current-password';
   $('swapText').textContent = reg ? 'Already registered?' : 'No account?';
   $('swap').textContent = reg ? 'Sign in' : 'Create one';
   $('err').textContent = '';
 }
 
-$('swap').onclick = e => { e.preventDefault(); mode = mode === 'login' ? 'register' : 'login'; paint(); };
+$('swap').onclick = e => { e.preventDefault(); mode = mode === 'register' ? 'login' : 'register'; paint(); };
 
 $('form').onsubmit = async e => {
   e.preventDefault();
@@ -82,16 +83,11 @@ $('form').onsubmit = async e => {
     if (!r.ok) throw new Error(d.error || 'Request failed');
 
     toast(mode === 'register' ? 'Account created' : 'Signed in');
-    setTimeout(() => location.href = '/dashboard', 420);
+    setTimeout(() => location.href = '/', 380);
   } catch (err) { $('err').textContent = err.message; }
 };
 
-(async () => {
-  try {
-    await fetch('/api/me', { credentials: 'same-origin' }).then(r => { if (r.ok) location.href = '/dashboard'; });
-  } catch {}
-  paint();
-})();
+paint();
 </script>
 </body>
 </html>
