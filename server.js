@@ -23,6 +23,16 @@ function issue(res, user, kind) {
     jwt.sign({ uid: user.id, kind }, SECRET, { expiresIn: '7d' }), cookieOpts);
 }
 
+function currentUser(req) {
+  try {
+    const p = jwt.verify(req.cookies.token || '', SECRET);
+    if (p.kind !== 'user') return null;
+    const u = db.prepare('SELECT * FROM users WHERE id = ?').get(p.uid);
+    if (!u || u.banned) return null;
+    return u;
+  } catch { return null; }
+}
+
 function userAuth(req, res, next) {
   try {
     const p = jwt.verify(req.cookies.token || '', SECRET);
@@ -46,17 +56,29 @@ function adminAuth(req, res, next) {
   } catch { res.status(401).json({ error: 'Admin sign-in required' }); }
 }
 
-/* ================= pages ================= */
+/* ================= pages (gated) ================= */
 
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
-app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
+app.get('/', (req, res) => {
+  if (!currentUser(req)) return res.redirect('/login');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/login', (req, res) => {
+  if (currentUser(req)) return res.redirect('/');
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get('/dashboard', (req, res) => {
+  if (!currentUser(req)) return res.redirect('/login');
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
 app.get('/within', (req, res) => res.sendFile(path.join(__dirname, 'admin', 'index.html')));
 app.use(express.static(path.join(__dirname, 'public')));
 
-/* ================= public store ================= */
+/* ================= store (auth required) ================= */
 
-function storePayload() {
+app.get('/api/store', userAuth, (req, res) => {
   const panels = db.prepare(`
     SELECT p.id, p.name, p.logo, p.tagline, p.tier
     FROM panels p WHERE p.active = 1 ORDER BY p.sort_order, p.id
@@ -68,15 +90,12 @@ function storePayload() {
     FROM plans pl WHERE pl.panel_id = ? ORDER BY pl.sort_order, pl.price
   `);
 
-  return panels.map(p => ({ ...p, plans: planStmt.all(p.id) }));
-}
+  const withPlans = panels.map(p => ({ ...p, plans: planStmt.all(p.id) }));
 
-app.get('/api/store', (req, res) => {
-  const panels = storePayload();
   res.json({
-    panels,
+    panels: withPlans,
     meta: {
-      panels: panels.length,
+      panels: withPlans.length,
       keysDelivered: db.prepare("SELECT COUNT(*) c FROM stock WHERE status = 'SOLD'").get().c,
       keysAvailable: db.prepare("SELECT COUNT(*) c FROM stock WHERE status = 'AVAILABLE'").get().c
     }
@@ -158,19 +177,18 @@ app.post('/api/buy', userAuth, (req, res) => {
 });
 
 app.get('/api/my/keys', userAuth, (req, res) => {
-  const rows = db.prepare(`
-    SELECT s.id, s.key_value, s.status, s.sold_at,
-           pl.label AS plan_label, pl.hours,
-           pn.name AS panel_name, pn.logo,
-           datetime(s.sold_at, '+' || pl.hours || ' hours') AS expires_at
-    FROM stock s
-    JOIN plans pl ON pl.id = s.plan_id
-    JOIN panels pn ON pn.id = s.panel_id
-    WHERE s.user_id = ? ORDER BY s.id DESC
-  `).all(req.user.id);
-
-  const spent = rows.reduce((a, r) => a + 0, 0);
-  res.json({ keys: rows, spent });
+  res.json({
+    keys: db.prepare(`
+      SELECT s.id, s.key_value, s.status, s.sold_at,
+             pl.label AS plan_label, pl.hours,
+             pn.name AS panel_name, pn.logo,
+             datetime(s.sold_at, '+' || pl.hours || ' hours') AS expires_at
+      FROM stock s
+      JOIN plans pl ON pl.id = s.plan_id
+      JOIN panels pn ON pn.id = s.panel_id
+      WHERE s.user_id = ? ORDER BY s.id DESC
+    `).all(req.user.id)
+  });
 });
 
 /* ================= admin: auth ================= */
