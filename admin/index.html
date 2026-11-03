@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin — FF Panels</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <div class="logo">FF<span>PANELS</span> <span style="color:var(--dim);font-weight:400;font-size:13px">/ admin</span></div>
+    <div class="spacer"></div>
+    <button class="btn-ghost" id="logoutBtn" hidden>Sign out</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="loginBox" style="max-width:380px;margin:70px auto">
+    <div class="card">
+      <h3 style="margin:0 0 14px">Admin sign-in</h3>
+      <form id="loginForm">
+        <label class="field"><span>Username</span><input id="u" required></label>
+        <label class="field"><span>Password</span><input id="p" type="password" required></label>
+        <div class="err" id="err"></div>
+        <button class="btn-acc" style="width:100%" type="submit">Sign in</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="panelBox" hidden>
+    <div class="stats">
+      <div class="stat"><span>Users</span><b id="sUsers">0</b></div>
+      <div class="stat"><span>Banned</span><b id="sBanned">0</b></div>
+      <div class="stat"><span>Total keys</span><b id="sKeys">0</b></div>
+      <div class="stat"><span>Keys today</span><b id="sToday">0</b></div>
+      <div class="stat"><span>Revenue ₹</span><b id="sRev">0</b></div>
+    </div>
+
+    <div class="sec-title">
+      <h2>Users</h2>
+      <div class="spacer"></div>
+      <input id="search" placeholder="Search username or email" style="max-width:260px">
+      <button class="btn-ghost" id="refresh">Refresh</button>
+      <button class="btn-ghost" id="allKeys">All keys</button>
+    </div>
+
+    <div style="overflow:auto"><table>
+      <thead><tr><th>ID</th><th>User</th><th>Credits</th><th>Keys</th><th>Spent ₹</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
+      <tbody id="usersBody"></tbody>
+    </table></div>
+
+    <div id="keysBox" hidden style="margin-top:34px">
+      <div class="sec-title"><h2 id="keysTitle">Keys</h2></div>
+      <div style="overflow:auto"><table>
+        <thead><tr><th>Panel</th><th>Plan</th><th>Key</th><th>User</th><th>Status</th><th>Expires</th><th></th></tr></thead>
+        <tbody id="keysBody"></tbody>
+      </table></div>
+    </div>
+  </section>
+</main>
+
+<div class="modal-bg" id="creditModal">
+  <div class="modal">
+    <h3 style="margin:0 0 14px">Adjust credits — <span id="cUser"></span></h3>
+    <form id="creditForm">
+      <label class="field"><span>Amount (negative to deduct)</span><input id="cAmount" type="number" value="50" required></label>
+      <label class="field"><span>Note</span><input id="cNote" placeholder="e.g. manual top-up"></label>
+      <div class="err" id="cErr"></div>
+      <div style="display:flex;gap:9px">
+        <button type="button" class="btn-ghost" id="cCancel" style="flex:1">Cancel</button>
+        <button class="btn-acc" type="submit" style="flex:1">Apply</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let creditTarget = null;
+
+function toast(msg, bad) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.style.borderColor = bad ? 'var(--bad)' : 'var(--acc)';
+  t.classList.add('show');
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, {
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    ...opts
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(d.error || 'Request failed'), { status: r.status });
+  return d;
+}
+
+async function boot() {
+  try {
+    await api('/api/admin/me');
+    $('loginBox').hidden = true;
+    $('panelBox').hidden = false;
+    $('logoutBtn').hidden = false;
+    loadStats();
+    loadUsers();
+  } catch {
+    $('loginBox').hidden = false;
+    $('panelBox').hidden = true;
+    $('logoutBtn').hidden = true;
+  }
+}
+
+$('loginForm').onsubmit = async e => {
+  e.preventDefault();
+  $('err').textContent = '';
+  try {
+    await api('/api/admin/login', { method: 'POST', body: JSON.stringify({ username: $('u').value, password: $('p').value }) });
+    $('loginForm').reset();
+    boot();
+  } catch (err) { $('err').textContent = err.message; }
+};
+
+$('logoutBtn').onclick = async () => { await api('/api/admin/logout', { method: 'POST' }); boot(); };
+
+async function loadStats() {
+  const s = await api('/api/admin/stats');
+  $('sUsers').textContent = s.users;
+  $('sBanned').textContent = s.banned;
+  $('sKeys').textContent = s.keys;
+  $('sToday').textContent = s.keysToday;
+  $('sRev').textContent = s.revenue;
+}
+
+async function loadUsers() {
+  const q = encodeURIComponent($('search').value);
+  const { users } = await api('/api/admin/users?q=' + q);
+  $('usersBody').innerHTML = users.length ? users.map(u => `
+    <tr>
+      <td class="muted">#${u.id}</td>
+      <td><b>${esc(u.username)}</b><br><span class="muted" style="font-size:12px">${esc(u.email)}</span></td>
+      <td><b style="color:var(--acc)">${u.credits}</b></td>
+      <td>${u.key_count}</td>
+      <td>${u.spent}</td>
+      <td><span class="pill ${u.banned ? 'off' : 'on'}">${u.banned ? 'Banned' : 'Active'}</span></td>
+      <td class="muted">${esc(u.created_at)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn-ghost" data-act="credit" data-id="${u.id}" data-name="${esc(u.username)}">± Credits</button>
+        <button class="btn-ghost" data-act="keys" data-id="${u.id}" data-name="${esc(u.username)}">Keys</button>
+        <button class="${u.banned ? 'btn-ghost' : 'btn-bad'}" data-act="ban" data-id="${u.id}" data-banned="${u.banned}">${u.banned ? 'Unban' : 'Ban'}</button>
+        <button class="btn-ghost" data-act="del" data-id="${u.id}" data-name="${esc(u.username)}">Del</button>
+      </td>
+    </tr>`).join('') : `<tr><td colspan="8" class="muted" style="padding:22px">No users yet.</td></tr>`;
+}
+
+async function loadKeys(userId, name) {
+  const { keys } = await api('/api/admin/keys' + (userId ? '?userId=' + userId : ''));
+  $('keysBox').hidden = false;
+  $('keysTitle').textContent = userId ? `Keys — ${name}` : 'All keys';
+  $('keysBody').innerHTML = keys.length ? keys.map(k => {
+    const expired = new Date(k.expires_at.replace(' ', 'T') + 'Z') < new Date();
+    const cls = k.status === 'REVOKED' ? 'rev' : expired ? 'off' : 'on';
+    const label = k.status === 'REVOKED' ? 'Revoked' : expired ? 'Expired' : 'Active';
+    return `<tr>
+      <td>${esc(k.panel_name)}</td>
+      <td class="muted">${esc(k.plan_label)}</td>
+      <td><code>${esc(k.key_value)}</code></td>
+      <td>${esc(k.username)}</td>
+      <td><span class="pill ${cls}">${label}</span></td>
+      <td class="muted">${esc(k.expires_at)} UTC</td>
+      <td>${k.status === 'ACTIVE' ? `<button class="btn-bad" data-rev="${k.id}">Revoke</button>` : ''}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="7" class="muted" style="padding:22px">No keys.</td></tr>`;
+}
+
+$('usersBody').onclick = async e => {
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  const id = b.dataset.id;
+
+  if (b.dataset.act === 'credit') {
+    creditTarget = id;
+    $('cUser').textContent = b.dataset.name;
+    $('cErr').textContent = '';
+    $('creditModal').classList.add('open');
+    $('cAmount').focus();
+  }
+
+  if (b.dataset.act === 'keys') loadKeys(id, b.dataset.name);
+
+  if (b.dataset.act === 'ban') {
+    const next = b.dataset.banned === '1' ? 0 : 1;
+    await api(`/api/admin/users/${id}/ban`, { method: 'POST', body: JSON.stringify({ banned: next }) });
+    toast(next ? 'User banned' : 'User unbanned');
+    loadUsers(); loadStats();
+  }
+
+  if (b.dataset.act === 'del') {
+    if (!confirm(`Delete ${b.dataset.name} and all their keys?`)) return;
+    await api('/api/admin/users/' + id, { method: 'DELETE' });
+    toast('User deleted');
+    loadUsers(); loadStats();
+  }
+};
+
+$('keysBody').onclick = async e => {
+  const b = e.target.closest('[data-rev]');
+  if (!b) return;
+  await api('/api/admin/keys/' + b.dataset.rev + '/revoke', { method: 'POST' });
+  toast('Key revoked');
+  loadKeys();
+};
+
+$('creditForm').onsubmit = async e => {
+  e.preventDefault();
+  $('cErr').textContent = '';
+  try {
+    await api(`/api/admin/users/${creditTarget}/credits`, {
+      method: 'POST',
+      body: JSON.stringify({ amount: Number($('cAmount').value), note: $('cNote').value })
+    });
+    $('creditModal').classList.remove('open');
+    toast('Credits updated');
+    loadUsers(); loadStats();
+  } catch (err) { $('cErr').textContent = err.message; }
+};
+
+$('cCancel').onclick = () => $('creditModal').classList.remove('open');
+$('creditModal').onclick = e => { if (e.target === $('creditModal')) $('creditModal').classList.remove('open'); };
+$('refresh').onclick = () => { loadUsers(); loadStats(); };
+$('allKeys').onclick = () => loadKeys();
+$('search').oninput = () => { clearTimeout(window._t); window._t = setTimeout(loadUsers, 250); };
+
+boot();
+</script>
+</body>
+</html>
