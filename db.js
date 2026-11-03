@@ -65,8 +65,8 @@ CREATE INDEX IF NOT EXISTS idx_stock_user  ON stock(user_id);
 
 /* ---------- seed admin ---------- */
 
-const adminUser = process.env.ADMIN_USER || 'admin';
-const adminPass = process.env.ADMIN_PASS || 'admin123';
+const adminUser = process.env.ADMIN_USER || 'Mukesh';
+const adminPass = process.env.ADMIN_PASS || 'Mukesh7584843525';
 
 if (!db.prepare("SELECT id FROM users WHERE role = 'admin' LIMIT 1").get()) {
   db.prepare('INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)')
